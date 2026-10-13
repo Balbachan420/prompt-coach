@@ -21,6 +21,9 @@ prompt matches one. v0 supports Claude Code only, through a `UserPromptSubmit` h
 - `coach/correction.py`: the candidate regex, the reviewer prompt and the call to the
   model CLI (`PROMPT_COACH_LLM_CMD`, default `claude -p --model sonnet`). The child
   process gets `PROMPT_COACH_INNER=1`, so its own hooks skip it.
+- `coach/retire.py`: auto-retires keyword hints with no correction lift (30 labeled
+  fires, 5 corrections overall, 1.5× the base rate). The result goes to
+  `state.json` as `retired`, kept apart from the user's own `muted`.
 - `coach/cli.py`: `python3 -m coach install|uninstall|check|mute|unmute|status`.
 
 ## Rules

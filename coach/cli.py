@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from coach import store
+from coach import retire, store
 from coach.checks import evaluate, first_shown
 from coach.correction import TYPES
 
@@ -79,10 +79,20 @@ def status() -> str:
     fired = collections.Counter(r for e in events for r in e.get("fired", []))
     shown = sum(1 for e in events if e.get("shown"))
     muted = store.load_muted()
+    verdicts = {s.rule_id: s for s in retire.refresh()}
     lines = [f"prompts seen: {len(events)}, hints shown: {shown}"]
     for rule in store.load_rules():
-        flag = " (muted)" if rule["id"] in muted else ""
-        lines.append(f"  {rule['id']:<4} fired {fired[rule['id']]:>4}  {rule.get('title', '')}{flag}")
+        stat = verdicts[rule["id"]]
+        if rule["id"] in muted:
+            note = "muted by you"
+        elif stat.verdict == "pending":
+            note = f"judging: {stat.fires}/{retire.MIN_FIRES} labeled fires"
+        else:
+            note = (
+                f"{'kept' if stat.verdict == 'keep' else 'RETIRED'}: corrections after it "
+                f"{stat.rate:.0%} vs base {stat.base_rate:.0%}"
+            )
+        lines.append(f"  {rule['id']:<4} fired {fired[rule['id']]:>4}  {rule.get('title', '')}  [{note}]")
     lessons = store.read_lessons(days=30)
     real = [x for x in lessons if x.get("is_correction") and not x.get("agent_fault")]
     candidates = sum(1 for e in events if e.get("correction_candidate"))

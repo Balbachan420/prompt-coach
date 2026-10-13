@@ -35,15 +35,33 @@ def load_rules() -> list[dict]:
     return merge_rules(default, personal)
 
 
+def _load_set(key: str) -> set[str]:
+    return set(_read_json(home() / "state.json", {}).get(key, []))
+
+
+def _save_set(key: str, values: set[str]) -> None:
+    home().mkdir(parents=True, exist_ok=True)
+    state = _read_json(home() / "state.json", {})
+    state[key] = sorted(values)
+    (home() / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
 def load_muted() -> set[str]:
-    return set(_read_json(home() / "state.json", {}).get("muted", []))
+    """Hints the user silenced by hand."""
+    return _load_set("muted")
 
 
 def save_muted(muted: set[str]) -> None:
-    home().mkdir(parents=True, exist_ok=True)
-    state = _read_json(home() / "state.json", {})
-    state["muted"] = sorted(muted)
-    (home() / "state.json").write_text(json.dumps(state, indent=2), encoding="utf-8")
+    _save_set("muted", muted)
+
+
+def load_retired() -> set[str]:
+    """Hints silenced automatically because they do not predict corrections."""
+    return _load_set("retired")
+
+
+def save_retired(retired: set[str]) -> None:
+    _save_set("retired", retired)
 
 
 def append_event(event: dict) -> None:

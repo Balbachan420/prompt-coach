@@ -35,6 +35,7 @@ def start_analysis(payload: dict) -> None:
                 "session": payload.get("session_id") or "unknown",
                 "transcript_path": payload["transcript_path"],
                 "prompt": payload["prompt"],
+                "hash": prompt_hash(payload["prompt"]),
             },
             ensure_ascii=False,
         ),
@@ -58,7 +59,7 @@ def on_prompt(payload: dict) -> dict | None:
     prompt = payload.get("prompt") or ""
     session = payload.get("session_id")
     hits = evaluate(prompt, store.load_rules(), previous_hash=store.previous_hash(session))
-    shown = first_shown(hits, store.load_muted())
+    shown = first_shown(hits, store.load_muted() | store.load_retired())
     candidate = is_candidate(prompt) and bool(payload.get("transcript_path"))
     store.append_event(
         {

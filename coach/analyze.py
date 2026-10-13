@@ -11,7 +11,7 @@ import json
 import sys
 from pathlib import Path
 
-from coach import store
+from coach import retire, store
 from coach.correction import analyze, lesson_text
 from coach.session import read_turns
 
@@ -24,7 +24,8 @@ def run_job(job_path: Path) -> dict | None:
     verdict = analyze(read_turns(job["transcript_path"]), job["prompt"])
     if verdict is None:
         return None
-    store.append_lesson({"session": job["session"], **verdict})
+    store.append_lesson({"session": job["session"], "hash": job.get("hash"), **verdict})
+    retire.refresh()
     if not verdict["is_correction"] or verdict.get("agent_fault"):
         return verdict
     same = sum(
