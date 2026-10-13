@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 from coach import retire, store
-from coach.correction import analyze, lesson_text
+from coach.correction import LLMError, analyze, lesson_text
 from coach.session import read_turns
 from coach.sources import read_codex_turns
 
@@ -23,8 +23,10 @@ def run_job(job_path: Path) -> dict | None:
     finally:
         job_path.unlink(missing_ok=True)
     reader = read_codex_turns if job.get("provider") == "codex" else read_turns
-    verdict = analyze(reader(job["transcript_path"]), job["prompt"])
-    if verdict is None:
+    try:
+        verdict = analyze(reader(job["transcript_path"]), job["prompt"])
+    except LLMError as error:
+        store.log_error("live", str(error))
         return None
     store.append_lesson(
         {"session": job["session"], "provider": job.get("provider", "claude"), "hash": job.get("hash"), **verdict}

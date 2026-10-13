@@ -103,6 +103,9 @@ def status() -> str:
     )
     for kind, n in collections.Counter(x["type"] for x in real).most_common():
         lines.append(f"  {n:>3}  {TYPES.get(kind, kind)}")
+    errors = store.read_errors(days=7)
+    if errors:
+        lines.append(f"model call failures, last 7 days: {len(errors)}; latest: {errors[-1]['error']}")
     return "\n".join(lines)
 
 
@@ -111,7 +114,7 @@ def run_scan(providers: list[str], since: float = 0, assume_yes: bool = False, d
     that costs nothing. Without an interactive terminal the model calls are skipped."""
     plan = scan.build_plan(providers, since)
     print(scan.summary(plan))
-    if not plan.events:
+    if not plan.events and not plan.candidates:
         return 0
     if plan.candidates and not assume_yes:
         if not shutil.which("claude"):
@@ -132,9 +135,10 @@ def run_scan(providers: list[str], since: float = 0, assume_yes: bool = False, d
     def progress(done: int) -> None:
         print(f"\r  analyzed {done}/{total}", end="" if done < total else "\n", flush=True)
 
-    print(scan.report(scan.run(plan, progress=progress if total else None)))
+    result = scan.run(plan, progress=progress if total else None)
+    print(scan.report(result))
     print("\n" + memo.next_steps())
-    return 0
+    return 1 if result.errors and not result.lessons else 0
 
 
 def scan_cmd(args) -> int:

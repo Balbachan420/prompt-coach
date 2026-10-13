@@ -159,3 +159,41 @@ def test_install_no_scan_flag(dirs, monkeypatch, capsys, tmp_path):
     monkeypatch.setattr("builtins.input", lambda _: pytest.fail("must not ask"))
     assert cli.main(["install", "--no-scan", "--settings", str(tmp_path / "settings.json")]) == 0
     assert "Looking for your past sessions" not in capsys.readouterr().out
+
+
+def failing_llm(tmp_path, monkeypatch, body):
+    fake = tmp_path / "bad_llm.py"
+    fake.write_text("import sys; sys.stdin.read()\n" + body)
+    monkeypatch.setenv("PROMPT_COACH_LLM_CMD", f"{sys.executable} {fake}")
+
+
+def test_failed_model_calls_are_reported_and_retried(dirs, tmp_path, claude_on_path, monkeypatch, capsys):
+    failing_llm(tmp_path, monkeypatch, "sys.stderr.write('Error: connect EPERM api.anthropic.com (sandbox)'); sys.exit(1)\n")
+    assert cli.main(["scan", "--yes"]) == 1
+    out = capsys.readouterr().out
+    assert "FAILED 2 of 2" in out and "EPERM api.anthropic.com" in out and "sandbox" in out
+    assert store.read_lessons() == []
+    assert len(store.read_events()) == 4
+    assert len(store.read_errors()) == 2
+
+    plan = scan.build_plan(["claude", "codex"])
+    assert plan.events == [] and len(plan.candidates) == 2  # retried, not logged twice
+
+    fake = tmp_path / "good_llm.py"
+    fake.write_text(f"import sys; sys.stdin.read(); print({json.dumps(json.dumps(VERDICT, ensure_ascii=False))})\n")
+    monkeypatch.setenv("PROMPT_COACH_LLM_CMD", f"{sys.executable} {fake}")
+    assert cli.main(["scan", "--yes"]) == 0
+    assert len(store.read_lessons()) == 2 and len(store.read_events()) == 4
+    assert scan.build_plan(["claude", "codex"]).candidates == []
+
+
+def test_non_json_answer_is_a_reported_failure(dirs, tmp_path, claude_on_path, monkeypatch, capsys):
+    failing_llm(tmp_path, monkeypatch, "print('Sure, I will continue the session for you…')\n")
+    cli.main(["scan", "--yes"])
+    assert "answer was not a JSON verdict" in capsys.readouterr().out
+
+
+def test_missing_model_command_is_a_reported_failure(dirs, claude_on_path, monkeypatch, capsys):
+    monkeypatch.setenv("PROMPT_COACH_LLM_CMD", "definitely-not-a-command-xyz -p")
+    cli.main(["scan", "--yes"])
+    assert "command not found: definitely-not-a-command-xyz" in capsys.readouterr().out

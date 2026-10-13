@@ -106,6 +106,16 @@ def parse_verdict(raw: str) -> dict | None:
     return verdict
 
 
+class LLMError(RuntimeError):
+    """The model call failed or did not return a verdict. The message is short
+    and meant for the user: it is what tells a sandbox from a login problem."""
+
+
+def _tail(text: str, limit: int = 240) -> str:
+    text = " ".join((text or "").split())
+    return text if len(text) <= limit else "…" + text[-limit:]
+
+
 def call_llm(prompt: str, timeout: int = 180) -> str:
     """Run the configured model CLI with the prompt on stdin.
 
@@ -113,14 +123,25 @@ def call_llm(prompt: str, timeout: int = 180) -> str:
     themselves instead of recursing."""
     cmd = shlex.split(os.environ.get("PROMPT_COACH_LLM_CMD", DEFAULT_LLM_CMD))
     env = {**os.environ, INNER_ENV: "1"}
-    result = subprocess.run(
-        cmd, input=prompt, capture_output=True, text=True, timeout=timeout, env=env
-    )
+    try:
+        result = subprocess.run(
+            cmd, input=prompt, capture_output=True, text=True, timeout=timeout, env=env
+        )
+    except FileNotFoundError:
+        raise LLMError(f"command not found: {cmd[0]}") from None
+    except subprocess.TimeoutExpired:
+        raise LLMError(f"no answer within {timeout}s") from None
+    if result.returncode != 0 or not result.stdout.strip():
+        raise LLMError(f"{cmd[0]} exited {result.returncode}: {_tail(result.stderr or result.stdout) or 'no output'}")
     return result.stdout
 
 
-def analyze(turns: list[Turn], correction: str) -> dict | None:
-    return parse_verdict(call_llm(build_prompt(build_context(turns, correction))))
+def analyze(turns: list[Turn], correction: str) -> dict:
+    raw = call_llm(build_prompt(build_context(turns, correction)))
+    verdict = parse_verdict(raw)
+    if verdict is None:
+        raise LLMError(f"answer was not a JSON verdict: {_tail(raw, 160)}")
+    return verdict
 
 
 def lesson_text(verdict: dict, same_type_count: int) -> str:

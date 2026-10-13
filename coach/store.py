@@ -111,6 +111,30 @@ def append_lesson(lesson: dict) -> None:
         f.write(json.dumps({"ts": round(time.time()), **lesson}, ensure_ascii=False) + "\n")
 
 
+def log_error(where: str, message: str) -> None:
+    """Failed model calls, so `status` can say why lessons are missing."""
+    home().mkdir(parents=True, exist_ok=True)
+    with (home() / "errors.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"ts": round(time.time()), "where": where, "error": message}, ensure_ascii=False) + "\n")
+
+
+def read_errors(days: int = 7) -> list[dict]:
+    try:
+        lines = (home() / "errors.jsonl").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    since = time.time() - days * 86400
+    out = []
+    for line in lines:
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if entry.get("ts", 0) >= since:
+            out.append(entry)
+    return out
+
+
 def read_lessons(days: int | None = None) -> list[dict]:
     try:
         lines = (home() / "lessons.jsonl").read_text(encoding="utf-8").splitlines()

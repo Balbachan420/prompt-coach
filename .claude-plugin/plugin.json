@@ -1,7 +1,7 @@
 {
   "name": "prompt-coach",
   "displayName": "Prompt Coach",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Coaches your own prompting: a lesson at the moment you correct the agent, plus a one-time analysis of your Claude Code and Codex history",
   "author": { "name": "Balbachan420" },
   "repository": "https://github.com/Balbachan420/prompt-coach",
