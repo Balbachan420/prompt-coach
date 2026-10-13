@@ -38,7 +38,8 @@ same idea to a human's own sessions.
 - Claude Code, logged in with a subscription or an API key.
 - Python 3.9+, standard library only.
 - Optional: Codex CLI. Your Codex history is scanned too, and lessons can appear live in Codex.
-- Linux or macOS. Windows is untested.
+- Linux and macOS are tested. Windows: version 0.4.2 fixes the cp1251 encoding failures a
+  Windows user hit in the scan; the live hooks have not been confirmed there yet.
 
 ## Install: Claude Code plugin (recommended)
 

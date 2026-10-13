@@ -49,6 +49,9 @@ def run_job(job_path: Path) -> dict | None:
 
 if __name__ == "__main__":
     try:
+        from coach.utf8 import force_utf8_stdio
+
+        force_utf8_stdio()
         run_job(Path(sys.argv[1]))
     except Exception:  # noqa: BLE001 — a background coach bug stays invisible
         pass

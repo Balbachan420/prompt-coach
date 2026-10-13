@@ -14,6 +14,7 @@ from coach import codex_install, memo, retire, scan, store
 from coach.checks import evaluate, first_shown
 from coach.correction import TYPES
 from coach.sources import PROVIDERS
+from coach.utf8 import force_utf8_stdio
 
 MARKER = "prompt-coach"
 EVENTS = ("UserPromptSubmit", "Stop")
@@ -151,6 +152,7 @@ def scan_cmd(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    force_utf8_stdio()
     parser = argparse.ArgumentParser(prog="coach")
     sub = parser.add_subparsers(dest="cmd", required=True)
     for name in ("install", "uninstall"):

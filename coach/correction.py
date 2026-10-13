@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 
 from coach.session import Turn, render
@@ -122,10 +123,21 @@ def call_llm(prompt: str, timeout: int = 180) -> str:
     INNER_ENV marks the child, so the hooks that this inner session fires skip
     themselves instead of recursing."""
     cmd = shlex.split(os.environ.get("PROMPT_COACH_LLM_CMD", DEFAULT_LLM_CMD))
+    # Resolve through PATH and PATHEXT: on Windows an npm install is `claude.cmd`,
+    # which a bare "claude" does not reach.
+    cmd[0] = shutil.which(cmd[0]) or cmd[0]
     env = {**os.environ, INNER_ENV: "1"}
     try:
+        # Explicit UTF-8 both ways: the default is the ANSI code page on Windows,
+        # which cannot encode "→" or "−" from the session text.
         result = subprocess.run(
-            cmd, input=prompt, capture_output=True, text=True, timeout=timeout, env=env
+            cmd,
+            input=prompt,
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            env=env,
         )
     except FileNotFoundError:
         raise LLMError(f"command not found: {cmd[0]}") from None

@@ -111,7 +111,8 @@ def test_scan_writes_dated_events_and_lessons_and_is_idempotent(dirs, fake_llm, 
 
 @pytest.fixture
 def claude_on_path(monkeypatch):
-    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/" + name)
+    real_which = cli.shutil.which
+    monkeypatch.setattr(cli.shutil, "which", lambda name, *a, **k: "/usr/bin/claude" if name == "claude" else real_which(name, *a, **k))
 
 
 def test_scan_asks_before_model_calls(dirs, fake_llm, claude_on_path, monkeypatch, capsys):

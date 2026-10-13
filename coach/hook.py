@@ -22,6 +22,7 @@ import uuid
 from pathlib import Path
 
 from coach import memo, store
+from coach.utf8 import force_utf8_stdio
 from coach.checks import evaluate, first_shown, prompt_hash
 from coach.correction import INNER_ENV, is_candidate
 
@@ -47,13 +48,18 @@ def start_analysis(payload: dict, provider: str) -> None:
     if os.environ.get("PROMPT_COACH_SYNC"):  # tests
         subprocess.run(cmd, cwd=REPO, check=False)
         return
+    detach = (
+        {"creationflags": subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP}
+        if os.name == "nt"
+        else {"start_new_session": True}
+    )
     subprocess.Popen(
         cmd,
         cwd=REPO,
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        start_new_session=True,
+        **detach,
     )
 
 
@@ -110,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if os.environ.get(INNER_ENV):
             return 0
+        force_utf8_stdio()
         args = sys.argv[1:] if argv is None else argv
         provider = args[0] if args and args[0] in ("claude", "codex") else "claude"
         store.remember_root(REPO)
