@@ -65,6 +65,9 @@ The commands are:
 - `/prompt-coach:scan`: analyze past Claude Code and Codex sessions (asks before calling the model)
 - `/prompt-coach:status`: lessons by type, and each hint's auto-retire verdict
 - `/prompt-coach:codex`: turn on live lessons in Codex too
+- `/prompt-coach:help`: show this list again
+
+Your first session after install opens with a short memo that lists these commands.
 
 ## Install: from a terminal
 

@@ -134,6 +134,7 @@ def test_install_offers_scan_and_enter_means_yes(dirs, fake_llm, claude_on_path,
     out = capsys.readouterr().out
     assert asked and "[Y/n]" in asked[0]
     assert "analyzed 2/2" in out and "caused by the prompt 2" in out
+    assert "Что дальше" in out and "Команды" in out
     assert len(store.read_lessons()) == 2
 
 

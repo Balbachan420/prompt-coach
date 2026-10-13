@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from coach import codex_install, retire, scan, store
+from coach import codex_install, memo, retire, scan, store
 from coach.checks import evaluate, first_shown
 from coach.correction import TYPES
 from coach.sources import PROVIDERS
@@ -133,6 +133,7 @@ def run_scan(providers: list[str], since: float = 0, assume_yes: bool = False, d
         print(f"\r  analyzed {done}/{total}", end="" if done < total else "\n", flush=True)
 
     print(scan.report(scan.run(plan, progress=progress if total else None)))
+    print("\n" + memo.next_steps())
     return 0
 
 
@@ -159,6 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mute").add_argument("rule_id")
     sub.add_parser("unmute").add_argument("rule_id")
     sub.add_parser("status")
+    sub.add_parser("help", help="what the coach does and its commands")
     p = sub.add_parser("scan", help="analyze past sessions of Claude Code and Codex")
     p.add_argument("--provider", choices=["all", *PROVIDERS], default="all")
     p.add_argument("--days", type=int, default=None, help="only sessions from the last N days")
@@ -174,7 +176,9 @@ def main(argv: list[str] | None = None) -> int:
         if not args.no_scan:
             print("\nLooking for your past sessions in Claude Code and Codex…")
             run_scan(list(PROVIDERS), default_yes=True)
-        print("\nDone. Open a new Claude Code session; lessons appear after you correct the agent.")
+        scanned = any(e.get("source") == "scan" for e in store.read_events())
+        print("\n" + memo.welcome(scanned))
+        print("\nОткрой новую сессию Claude Code, и коуч заработает.")
     elif args.cmd == "uninstall":
         print(uninstall(args.settings))
         print(codex_install.uninstall())
@@ -191,6 +195,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"muted: {', '.join(sorted(muted)) or 'none'}")
     elif args.cmd == "status":
         print(status())
+    elif args.cmd == "help":
+        scanned = any(e.get("source") == "scan" for e in store.read_events())
+        print(memo.welcome(scanned))
     elif args.cmd == "scan":
         return scan_cmd(args)
     return 0

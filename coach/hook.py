@@ -21,18 +21,11 @@ import sys
 import uuid
 from pathlib import Path
 
-from coach import store
+from coach import memo, store
 from coach.checks import evaluate, first_shown, prompt_hash
 from coach.correction import INNER_ENV, is_candidate
 
 REPO = Path(__file__).resolve().parent.parent
-SCAN_OFFER = (
-    "💡 coach: можно разобрать твою прошлую историю в Claude Code и Codex и сразу "
-    "увидеть, из-за чего чаще всего приходится поправлять агента. "
-    "Запусти /prompt-coach:scan (или `prompt-coach scan` в терминале)."
-)
-
-
 def start_analysis(payload: dict, provider: str) -> None:
     jobs = store.home() / "jobs"
     jobs.mkdir(parents=True, exist_ok=True)
@@ -100,13 +93,14 @@ def on_stop(payload: dict, provider: str) -> dict | None:
 
 
 def on_session_start(payload: dict, provider: str) -> dict | None:
-    """Offer the history scan once, and only if no scan has run yet."""
-    marker = store.home() / "scan_offered"
-    if marker.exists() or any(e.get("source") == "scan" for e in store.read_events()):
+    """Show the memo once: what the coach does, the commands, and the scan if not run yet."""
+    marker = store.home() / "welcome_shown"
+    if marker.exists():
         return None
     marker.parent.mkdir(parents=True, exist_ok=True)
     marker.write_text("1", encoding="utf-8")
-    return {"systemMessage": SCAN_OFFER}
+    scanned = any(e.get("source") == "scan" for e in store.read_events())
+    return {"systemMessage": memo.welcome(scanned)}
 
 
 HANDLERS = {"UserPromptSubmit": on_prompt, "Stop": on_stop, "SessionStart": on_session_start}

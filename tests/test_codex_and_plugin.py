@@ -124,20 +124,23 @@ def test_bin_runs_hook_from_any_cwd_and_records_root(tmp_path):
     assert (home / "root").read_text() == str(REPO)
 
 
-def test_session_start_offers_scan_once(tmp_path):
+def test_session_start_shows_memo_once(tmp_path):
     home = tmp_path / "coach"
     start = json.dumps({"hook_event_name": "SessionStart", "session_id": "s"})
-    first = run_bin(["hook", "claude"], start, home)
-    assert "/prompt-coach:scan" in json.loads(first.stdout)["systemMessage"]
+    message = json.loads(run_bin(["hook", "claude"], start, home).stdout)["systemMessage"]
+    assert "Prompt Coach установлен" in message and "Начни с" in message
+    for name in ("scan", "status", "codex", "help"):
+        assert name in message
     assert run_bin(["hook", "claude"], start, home).stdout == ""
 
 
-def test_session_start_silent_after_a_scan(tmp_path):
+def test_memo_after_a_scan_does_not_push_the_scan(tmp_path):
     home = tmp_path / "coach"
     home.mkdir()
     (home / "events.jsonl").write_text(json.dumps({"session": "old", "source": "scan", "fired": []}) + "\n")
     start = json.dumps({"hook_event_name": "SessionStart", "session_id": "s"})
-    assert run_bin(["hook", "claude"], start, home).stdout == ""
+    message = json.loads(run_bin(["hook", "claude"], start, home).stdout)["systemMessage"]
+    assert "Команды" in message and "Начни с" not in message
 
 
 def test_manifests_agree_on_name():
@@ -145,3 +148,19 @@ def test_manifests_agree_on_name():
     market = json.loads((REPO / ".claude-plugin" / "marketplace.json").read_text())
     assert plugin["name"] == market["plugins"][0]["name"] == "prompt-coach"
     assert market["plugins"][0]["source"] == "./"
+
+
+def test_memo_uses_slash_commands_in_plugin_and_module_commands_in_terminal():
+    from coach import memo
+
+    plugin, terminal = memo.welcome(False, plugin=True), memo.welcome(False, plugin=False)
+    assert "/prompt-coach:status" in plugin and "python3 -m coach" not in plugin
+    assert "python3 -m coach codex-install" in terminal and "/prompt-coach:" not in terminal
+    assert "/prompt-coach:status" in memo.next_steps(plugin=True)
+
+
+def test_every_memo_command_exists():
+    from coach import memo
+
+    for name, _ in memo.COMMANDS:
+        assert (REPO / "commands" / f"{name}.md").exists()
