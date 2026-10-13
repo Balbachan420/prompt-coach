@@ -10,9 +10,10 @@ import sys
 import time
 from pathlib import Path
 
-from coach import retire, store
+from coach import retire, scan, store
 from coach.checks import evaluate, first_shown
 from coach.correction import TYPES
+from coach.sources import PROVIDERS
 
 MARKER = "prompt-coach"
 EVENTS = ("UserPromptSubmit", "Stop")
@@ -105,6 +106,22 @@ def status() -> str:
     return "\n".join(lines)
 
 
+def scan_cmd(args) -> int:
+    providers = list(PROVIDERS) if args.provider == "all" else [args.provider]
+    since = time.time() - args.days * 86400 if args.days else 0
+    plan = scan.build_plan(providers, since)
+    print(scan.summary(plan))
+    if args.dry_run or not plan.events:
+        return 0
+    if plan.candidates and not args.yes:
+        answer = input(f"Run {len(plan.candidates)} model calls on your Claude limit? [y/N] ")
+        if answer.strip().lower() not in ("y", "yes", "д", "да"):
+            print("cancelled, nothing written")
+            return 1
+    print(scan.report(scan.run(plan)))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="coach")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -115,6 +132,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mute").add_argument("rule_id")
     sub.add_parser("unmute").add_argument("rule_id")
     sub.add_parser("status")
+    p = sub.add_parser("scan", help="analyze past sessions of Claude Code and Codex")
+    p.add_argument("--provider", choices=["all", *PROVIDERS], default="all")
+    p.add_argument("--days", type=int, default=None, help="only sessions from the last N days")
+    p.add_argument("--dry-run", action="store_true", help="count only, no model calls")
+    p.add_argument("--yes", action="store_true", help="do not ask before the model calls")
     args = parser.parse_args(argv)
 
     if args.cmd == "install":
@@ -130,4 +152,6 @@ def main(argv: list[str] | None = None) -> int:
         print(f"muted: {', '.join(sorted(muted)) or 'none'}")
     elif args.cmd == "status":
         print(status())
+    elif args.cmd == "scan":
+        return scan_cmd(args)
     return 0

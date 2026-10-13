@@ -2,7 +2,7 @@
 
 A coach for your own prompting. It sits next to a coding agent, checks every prompt
 you send against your personal weak patterns, and shows a one-line hint when the
-prompt matches one. v0 supports Claude Code only, through a `UserPromptSubmit` hook.
+prompt matches one. Live hooks support Claude Code; the history scan covers Claude Code and Codex.
 
 ## Layout
 
@@ -24,6 +24,11 @@ prompt matches one. v0 supports Claude Code only, through a `UserPromptSubmit` h
 - `coach/retire.py`: auto-retires keyword hints with no correction lift (30 labeled
   fires, 5 corrections overall, 1.5× the base rate). The result goes to
   `state.json` as `retired`, kept apart from the user's own `muted`.
+- `coach/sources.py`: finds past sessions per provider (Claude Code, Codex), skips
+  programmatic ones (`sdk-*` entrypoints, `codex exec`), and reads Codex rollouts
+  into the same turns.
+- `coach/scan.py`: backfills events and lessons from history, dated by session file
+  time and deduplicated by session, so auto-retire has data from day one.
 - `coach/cli.py`: `python3 -m coach install|uninstall|check|mute|unmute|status`.
 
 ## Rules

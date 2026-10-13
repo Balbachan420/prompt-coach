@@ -62,12 +62,30 @@ python3 -m coach mute R6           # silence one keyword hint (unmute to restore
 python3 -m coach uninstall         # remove the hooks
 ```
 
+## Scan your history (Claude Code + Codex)
+
+The hooks only see sessions from the moment you install the coach. To learn from
+what came before, scan your past sessions in Claude Code (`~/.claude/projects`) and
+Codex (`~/.codex/sessions`):
+
+```bash
+python3 -m coach scan --dry-run          # count sessions, prompts and correction candidates
+python3 -m coach scan                    # analyze candidates with Sonnet (asks first)
+python3 -m coach scan --provider codex --days 30
+```
+
+The scan prints your corrections by type and provider, with examples. It also gives
+the keyword hints their auto-retire verdicts straight away. Programmatic runs
+(`claude -p`, `codex exec`) are skipped. Sessions already scanned or seen live are
+skipped too, so re-running is safe. Live hints and lessons inside Codex are not
+supported yet.
+
 ## Cost and privacy
 
 - The model is called **only on candidate corrections**: a few per day for an active
   user. By default this is `claude -p --model sonnet`, which runs on your own Claude
-  subscription limit (or API key). To use another model, set
-  `PROMPT_COACH_LLM_CMD`, for example `claude -p --model haiku`.
+  subscription limit (or API key). The command can be changed with
+  `PROMPT_COACH_LLM_CMD`, but Sonnet is the only model the coach has been validated on.
 - What the model receives: the opening prompt of the session, the last ~8 turns
   (long tool output collapsed to tool names) and your correction. It goes to the same
   Claude you are already working with, and nowhere else.
