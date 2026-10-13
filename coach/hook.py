@@ -1,8 +1,11 @@
-"""Claude Code hook entry point for UserPromptSubmit and Stop.
+"""Hook entry point for Claude Code and Codex: UserPromptSubmit, Stop, SessionStart.
 
 UserPromptSubmit: show a pattern hint if one fires, and when the prompt looks like
 a correction, start a detached analysis of the session. Stop: deliver the lesson
-that analysis left for this session.
+that analysis left for this session. SessionStart: offer the history scan once.
+
+Usage: `python3 -m coach.hook [claude|codex]`. The provider says how to read the
+session file; Claude Code is the default.
 
 Any failure is swallowed: the coach must never block, delay or break a prompt, so
 the worst case is silence. Sessions started by the coach itself (INNER_ENV) are
@@ -23,9 +26,14 @@ from coach.checks import evaluate, first_shown, prompt_hash
 from coach.correction import INNER_ENV, is_candidate
 
 REPO = Path(__file__).resolve().parent.parent
+SCAN_OFFER = (
+    "💡 coach: можно разобрать твою прошлую историю в Claude Code и Codex и сразу "
+    "увидеть, из-за чего чаще всего приходится поправлять агента. "
+    "Запусти /prompt-coach:scan (или `prompt-coach scan` в терминале)."
+)
 
 
-def start_analysis(payload: dict) -> None:
+def start_analysis(payload: dict, provider: str) -> None:
     jobs = store.home() / "jobs"
     jobs.mkdir(parents=True, exist_ok=True)
     job = jobs / f"{uuid.uuid4().hex}.json"
@@ -33,6 +41,7 @@ def start_analysis(payload: dict) -> None:
         json.dumps(
             {
                 "session": payload.get("session_id") or "unknown",
+                "provider": provider,
                 "transcript_path": payload["transcript_path"],
                 "prompt": payload["prompt"],
                 "hash": prompt_hash(payload["prompt"]),
@@ -55,7 +64,7 @@ def start_analysis(payload: dict) -> None:
     )
 
 
-def on_prompt(payload: dict) -> dict | None:
+def on_prompt(payload: dict, provider: str) -> dict | None:
     prompt = payload.get("prompt") or ""
     session = payload.get("session_id")
     hits = evaluate(prompt, store.load_rules(), previous_hash=store.previous_hash(session))
@@ -64,6 +73,7 @@ def on_prompt(payload: dict) -> dict | None:
     store.append_event(
         {
             "session": session,
+            "provider": provider,
             "hash": prompt_hash(prompt),
             "chars": len(prompt),
             "fired": [h.rule_id for h in hits],
@@ -72,13 +82,13 @@ def on_prompt(payload: dict) -> dict | None:
         }
     )
     if candidate:
-        start_analysis(payload)
+        start_analysis(payload, provider)
     if shown is None:
         return None
     return {"systemMessage": f"💡 coach · {shown.rule_id}: {shown.message}"}
 
 
-def on_stop(payload: dict) -> dict | None:
+def on_stop(payload: dict, provider: str) -> dict | None:
     if payload.get("stop_hook_active") or not payload.get("session_id"):
         return None
     pending = store.pending_path(payload["session_id"])
@@ -89,16 +99,29 @@ def on_stop(payload: dict) -> dict | None:
     return {"systemMessage": message}
 
 
-HANDLERS = {"UserPromptSubmit": on_prompt, "Stop": on_stop}
+def on_session_start(payload: dict, provider: str) -> dict | None:
+    """Offer the history scan once, and only if no scan has run yet."""
+    marker = store.home() / "scan_offered"
+    if marker.exists() or any(e.get("source") == "scan" for e in store.read_events()):
+        return None
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("1", encoding="utf-8")
+    return {"systemMessage": SCAN_OFFER}
 
 
-def main() -> int:
+HANDLERS = {"UserPromptSubmit": on_prompt, "Stop": on_stop, "SessionStart": on_session_start}
+
+
+def main(argv: list[str] | None = None) -> int:
     try:
         if os.environ.get(INNER_ENV):
             return 0
+        args = sys.argv[1:] if argv is None else argv
+        provider = args[0] if args and args[0] in ("claude", "codex") else "claude"
+        store.remember_root(REPO)
         payload = json.load(sys.stdin)
         handler = HANDLERS.get(payload.get("hook_event_name", "UserPromptSubmit"))
-        out = handler(payload) if handler else None
+        out = handler(payload, provider) if handler else None
         if out:
             print(json.dumps(out, ensure_ascii=False))
     except Exception:  # noqa: BLE001 — a coach bug must not cost the user a prompt

@@ -10,7 +10,7 @@ import sys
 import time
 from pathlib import Path
 
-from coach import retire, scan, store
+from coach import codex_install, retire, scan, store
 from coach.checks import evaluate, first_shown
 from coach.correction import TYPES
 from coach.sources import PROVIDERS
@@ -152,6 +152,9 @@ def main(argv: list[str] | None = None) -> int:
         p = sub.add_parser(name)
         p.add_argument("--settings", type=Path, default=Path("~/.claude/settings.json").expanduser())
     sub.choices["install"].add_argument("--no-scan", action="store_true", help="do not offer to scan history")
+    sub.choices["install"].add_argument("--no-codex", action="store_true", help="do not add hooks to Codex")
+    sub.add_parser("codex-install", help="add live hooks to Codex")
+    sub.add_parser("codex-uninstall", help="remove the hooks from Codex")
     sub.add_parser("check").add_argument("prompt")
     sub.add_parser("mute").add_argument("rule_id")
     sub.add_parser("unmute").add_argument("rule_id")
@@ -165,12 +168,20 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "install":
         print(install(args.settings))
+        store.remember_root(REPO)
+        if not args.no_codex and codex_install.codex_home().exists():
+            print(codex_install.install())
         if not args.no_scan:
             print("\nLooking for your past sessions in Claude Code and Codex…")
             run_scan(list(PROVIDERS), default_yes=True)
         print("\nDone. Open a new Claude Code session; lessons appear after you correct the agent.")
     elif args.cmd == "uninstall":
         print(uninstall(args.settings))
+        print(codex_install.uninstall())
+    elif args.cmd == "codex-install":
+        print(codex_install.install())
+    elif args.cmd == "codex-uninstall":
+        print(codex_install.uninstall())
     elif args.cmd == "check":
         print(check(args.prompt))
     elif args.cmd in ("mute", "unmute"):

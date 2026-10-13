@@ -29,6 +29,16 @@ prompt matches one. Live hooks support Claude Code; the history scan covers Clau
   into the same turns.
 - `coach/scan.py`: backfills events and lessons from history, dated by session file
   time and deduplicated by session, so auto-retire has data from day one.
+- `coach/codex_install.py`: Codex hooks. It appends a marker block to config.toml when
+  inline hooks exist (otherwise it uses hooks.json), checks the result with tomllib,
+  and makes a backup. It never writes Codex trust records. The hook runs a shim in
+  `~/.prompt-coach`, which finds the code through `~/.prompt-coach/root`.
+- Plugin: `.claude-plugin/{plugin,marketplace}.json`, `hooks/hooks.json`,
+  `commands/*.md` and `bin/prompt-coach`, which is on the Bash PATH inside the
+  plugin. Bump `version` in plugin.json on every release, or users stay on the old
+  one. Check with `claude plugin validate .`.
+- `tests/conftest.py` keeps every test away from the real ~/.codex, ~/.claude and
+  ~/.prompt-coach. A test once wrote into the owner's real Codex config.
 - `coach/cli.py`: `python3 -m coach install|uninstall|check|mute|unmute|status`.
 
 ## Rules

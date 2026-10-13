@@ -84,6 +84,20 @@ def read_events() -> list[dict]:
     return events
 
 
+def remember_root(root: Path) -> None:
+    """Record where the coach code lives now. A plugin update moves it, and the
+    Codex shim, which sits outside the plugin, finds the code through this file."""
+    pointer = home() / "root"
+    current = str(root)
+    try:
+        if pointer.read_text(encoding="utf-8") == current:
+            return
+    except OSError:
+        pass
+    home().mkdir(parents=True, exist_ok=True)
+    pointer.write_text(current, encoding="utf-8")
+
+
 def pending_path(session_id: str) -> Path:
     """A lesson waiting for the Stop hook of this session."""
     safe = "".join(c for c in session_id if c.isalnum() or c in "-_") or "unknown"

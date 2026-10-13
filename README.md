@@ -35,11 +35,35 @@ same idea to a human's own sessions.
 
 ## Requirements
 
-- Claude Code, logged in with a subscription or an API key. `claude` must be on your PATH.
+- Claude Code, logged in with a subscription or an API key.
 - Python 3.9+, standard library only.
+- Optional: Codex CLI. Your Codex history is scanned too, and lessons can appear live in Codex.
 - Linux or macOS. Windows is untested.
 
-## Install
+## Install: Claude Code plugin (recommended)
+
+Run this inside Claude Code:
+
+```
+/plugin install prompt-coach --marketplace Balbachan420/prompt-coach
+```
+
+On older Claude Code versions, use two steps:
+
+```
+/plugin marketplace add Balbachan420/prompt-coach
+/plugin install prompt-coach@prompt-coach
+```
+
+The plugin brings its own hooks, so `settings.json` is not edited, and updates arrive
+through `/plugin`. In your next session the coach offers once to analyze your history.
+The commands are:
+
+- `/prompt-coach:scan`: analyze past Claude Code and Codex sessions (asks before calling the model)
+- `/prompt-coach:status`: lessons by type, and each hint's auto-retire verdict
+- `/prompt-coach:codex`: turn on live lessons in Codex too
+
+## Install: from a terminal
 
 ```bash
 git clone https://github.com/Balbachan420/prompt-coach.git ~/prompt-coach
@@ -48,13 +72,22 @@ python3 -m coach install
 ```
 
 This adds two hooks (`UserPromptSubmit` and `Stop`) to `~/.claude/settings.json`,
-backs up the previous file next to it, and leaves your other hooks untouched.
+backs up the previous file next to it, and leaves your other hooks untouched. If Codex
+is installed, the same hooks are added to it (`--no-codex` skips that). Then the
+coach finds your past sessions, shows how many correction candidates they hold, and
+asks once: press Enter and Sonnet analyzes them, then prints your corrections by
+type with examples. `--no-scan` skips the offer. Open a **new** Claude Code session
+afterwards.
 
-It then finds your past sessions in Claude Code and Codex, shows how many correction
-candidates they hold, and asks once. Press Enter and Sonnet analyzes them, with a
-progress counter, then prints your corrections by type with examples. Skip the
-offer with `--no-scan`, or run `python3 -m coach scan` later. Open a **new** Claude
-Code session afterwards.
+Pick one install method. Using both runs every hook twice.
+
+## Codex
+
+Live lessons in Codex use Codex's own `UserPromptSubmit` and `Stop` hooks. They go
+into `~/.codex/hooks.json`, or into `~/.codex/config.toml` if your hooks already live
+there. **Codex runs a new hook only after you trust it.** Open Codex, run `/hooks`,
+and trust the two prompt-coach hooks. The coach never does this for you. To remove
+them, run `prompt-coach codex-uninstall`.
 
 ## Use
 
@@ -82,8 +115,7 @@ python3 -m coach scan --provider codex --days 30
 The scan prints your corrections by type and provider, with examples. It also gives
 the keyword hints their auto-retire verdicts straight away. Programmatic runs
 (`claude -p`, `codex exec`) are skipped. Sessions already scanned or seen live are
-skipped too, so re-running is safe. Live hints and lessons inside Codex are not
-supported yet.
+skipped too, so re-running is safe. Live lessons inside Codex need the Codex hooks above.
 
 ## Cost and privacy
 

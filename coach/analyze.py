@@ -14,6 +14,7 @@ from pathlib import Path
 from coach import retire, store
 from coach.correction import analyze, lesson_text
 from coach.session import read_turns
+from coach.sources import read_codex_turns
 
 
 def run_job(job_path: Path) -> dict | None:
@@ -21,10 +22,13 @@ def run_job(job_path: Path) -> dict | None:
         job = json.loads(job_path.read_text(encoding="utf-8"))
     finally:
         job_path.unlink(missing_ok=True)
-    verdict = analyze(read_turns(job["transcript_path"]), job["prompt"])
+    reader = read_codex_turns if job.get("provider") == "codex" else read_turns
+    verdict = analyze(reader(job["transcript_path"]), job["prompt"])
     if verdict is None:
         return None
-    store.append_lesson({"session": job["session"], "hash": job.get("hash"), **verdict})
+    store.append_lesson(
+        {"session": job["session"], "provider": job.get("provider", "claude"), "hash": job.get("hash"), **verdict}
+    )
     retire.refresh()
     if not verdict["is_correction"] or verdict.get("agent_fault"):
         return verdict

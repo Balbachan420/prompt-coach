@@ -1,0 +1,12 @@
+{
+  "name": "prompt-coach",
+  "description": "Prompt Coach for Claude Code",
+  "owner": { "name": "Balbachan420" },
+  "plugins": [
+    {
+      "name": "prompt-coach",
+      "source": "./",
+      "description": "A lesson at the moment you correct the agent, plus a one-time analysis of your Claude Code and Codex history"
+    }
+  ]
+}

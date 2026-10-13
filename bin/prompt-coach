@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""prompt-coach command line: `prompt-coach scan|status|check|mute|...`.
+
+Inside the Claude Code plugin this file is on the Bash PATH, and the plugin
+hooks run it as `prompt-coach hook <provider>`.
+"""
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+if sys.argv[1:2] == ["hook"]:
+    from coach.hook import main as hook_main
+
+    sys.exit(hook_main(sys.argv[2:]))
+
+from coach.cli import main
+
+sys.exit(main())
