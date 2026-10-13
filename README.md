@@ -20,7 +20,11 @@ logged. Your prompt is never delayed or blocked.
 
 The coach also has a few keyword hints that fire as you submit (a bare file path, a
 destructive action with no "ask me first", the same prompt sent twice). These are
-heuristics and can be noisy, so mute any that do not help you.
+heuristics and can be noisy, so they retire themselves. After a hint has fired 30
+times, the coach checks whether a confirmed correction followed those prompts at least
+1.5× more often than it follows your prompts in general. If not, the hint goes quiet.
+A retired hint is still evaluated in the background, so it comes back if it starts to
+predict corrections. `python3 -m coach status` shows the verdict for each hint.
 
 The idea comes from *Coding Agents are Strong Prompt Optimizers*
 ([arXiv:2609.26261](https://arxiv.org/abs/2609.26261)). There, a coding agent reads a
