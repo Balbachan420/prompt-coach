@@ -97,12 +97,14 @@ def _analyze(candidate: Candidate) -> tuple[Candidate, dict | None]:
         return candidate, None
 
 
-def run(plan: Plan, workers: int = 4) -> list[dict]:
+def run(plan: Plan, workers: int = 4, progress=None) -> list[dict]:
     for event in plan.events:
         store.append_event(event)
     lessons = []
     with ThreadPoolExecutor(workers) as pool:
-        for candidate, verdict in pool.map(_analyze, plan.candidates):
+        for done, (candidate, verdict) in enumerate(pool.map(_analyze, plan.candidates), 1):
+            if progress:
+                progress(done)
             if verdict is None:
                 continue
             lesson = {

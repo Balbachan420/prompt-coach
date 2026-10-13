@@ -48,8 +48,13 @@ python3 -m coach install
 ```
 
 This adds two hooks (`UserPromptSubmit` and `Stop`) to `~/.claude/settings.json`,
-backs up the previous file next to it, and leaves your other hooks untouched. Open a
-**new** Claude Code session afterwards.
+backs up the previous file next to it, and leaves your other hooks untouched.
+
+It then finds your past sessions in Claude Code and Codex, shows how many correction
+candidates they hold, and asks once. Press Enter and Sonnet analyzes them, with a
+progress counter, then prints your corrections by type with examples. Skip the
+offer with `--no-scan`, or run `python3 -m coach scan` later. Open a **new** Claude
+Code session afterwards.
 
 ## Use
 

@@ -106,20 +106,43 @@ def status() -> str:
     return "\n".join(lines)
 
 
+def run_scan(providers: list[str], since: float = 0, assume_yes: bool = False, default_yes: bool = False) -> int:
+    """Count, ask once, analyze. Prompts without candidates are logged without asking:
+    that costs nothing. Without an interactive terminal the model calls are skipped."""
+    plan = scan.build_plan(providers, since)
+    print(scan.summary(plan))
+    if not plan.events:
+        return 0
+    if plan.candidates and not assume_yes:
+        if not shutil.which("claude"):
+            print("`claude` is not on PATH, so corrections cannot be analyzed yet. Run `python3 -m coach scan` later.")
+            return 1
+        hint = "[Y/n]" if default_yes else "[y/N]"
+        try:
+            answer = input(f"Analyze {len(plan.candidates)} corrections with Sonnet on your Claude limit? {hint} ").strip().lower()
+        except EOFError:
+            answer = "n"
+        if not answer and default_yes:
+            answer = "y"
+        if answer not in ("y", "yes", "д", "да"):
+            print("skipped, nothing written. Run `python3 -m coach scan` any time.")
+            return 1
+    total = len(plan.candidates)
+
+    def progress(done: int) -> None:
+        print(f"\r  analyzed {done}/{total}", end="" if done < total else "\n", flush=True)
+
+    print(scan.report(scan.run(plan, progress=progress if total else None)))
+    return 0
+
+
 def scan_cmd(args) -> int:
     providers = list(PROVIDERS) if args.provider == "all" else [args.provider]
     since = time.time() - args.days * 86400 if args.days else 0
-    plan = scan.build_plan(providers, since)
-    print(scan.summary(plan))
-    if args.dry_run or not plan.events:
+    if args.dry_run:
+        print(scan.summary(scan.build_plan(providers, since)))
         return 0
-    if plan.candidates and not args.yes:
-        answer = input(f"Run {len(plan.candidates)} model calls on your Claude limit? [y/N] ")
-        if answer.strip().lower() not in ("y", "yes", "д", "да"):
-            print("cancelled, nothing written")
-            return 1
-    print(scan.report(scan.run(plan)))
-    return 0
+    return run_scan(providers, since, assume_yes=args.yes)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -128,6 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("install", "uninstall"):
         p = sub.add_parser(name)
         p.add_argument("--settings", type=Path, default=Path("~/.claude/settings.json").expanduser())
+    sub.choices["install"].add_argument("--no-scan", action="store_true", help="do not offer to scan history")
     sub.add_parser("check").add_argument("prompt")
     sub.add_parser("mute").add_argument("rule_id")
     sub.add_parser("unmute").add_argument("rule_id")
@@ -141,6 +165,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "install":
         print(install(args.settings))
+        if not args.no_scan:
+            print("\nLooking for your past sessions in Claude Code and Codex…")
+            run_scan(list(PROVIDERS), default_yes=True)
+        print("\nDone. Open a new Claude Code session; lessons appear after you correct the agent.")
     elif args.cmd == "uninstall":
         print(uninstall(args.settings))
     elif args.cmd == "check":

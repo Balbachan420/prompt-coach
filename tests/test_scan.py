@@ -109,10 +109,15 @@ def test_scan_writes_dated_events_and_lessons_and_is_idempotent(dirs, fake_llm, 
     assert plan.events == [] and plan.candidates == []
 
 
-def test_scan_asks_before_model_calls(dirs, fake_llm, monkeypatch, capsys):
+@pytest.fixture
+def claude_on_path(monkeypatch):
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/usr/bin/" + name)
+
+
+def test_scan_asks_before_model_calls(dirs, fake_llm, claude_on_path, monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda _: "n")
     assert cli.main(["scan"]) == 1
-    assert "cancelled" in capsys.readouterr().out
+    assert "skipped" in capsys.readouterr().out
     assert store.read_events() == [] and store.read_lessons() == []
 
 
@@ -120,3 +125,36 @@ def test_scan_skips_sessions_already_seen_live(dirs):
     store.append_event({"session": "c-live", "hash": "x", "fired": []})
     plan = scan.build_plan(["claude"])
     assert plan.sessions["claude"] == 0
+
+
+def test_install_offers_scan_and_enter_means_yes(dirs, fake_llm, claude_on_path, monkeypatch, capsys, tmp_path):
+    asked = []
+    monkeypatch.setattr("builtins.input", lambda q: asked.append(q) or "")
+    assert cli.main(["install", "--settings", str(tmp_path / "settings.json")]) == 0
+    out = capsys.readouterr().out
+    assert asked and "[Y/n]" in asked[0]
+    assert "analyzed 2/2" in out and "caused by the prompt 2" in out
+    assert len(store.read_lessons()) == 2
+
+
+def test_install_without_terminal_skips_model_calls(dirs, fake_llm, claude_on_path, monkeypatch, capsys, tmp_path):
+    def no_tty(_):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", no_tty)
+    assert cli.main(["install", "--settings", str(tmp_path / "settings.json")]) == 0
+    assert "Run `python3 -m coach scan` any time" in capsys.readouterr().out
+    assert store.read_lessons() == []
+
+
+def test_install_without_claude_cli_explains(dirs, fake_llm, monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr(cli.shutil, "which", lambda name: None)
+    monkeypatch.setattr("builtins.input", lambda _: pytest.fail("must not ask"))
+    assert cli.main(["install", "--settings", str(tmp_path / "settings.json")]) == 0
+    assert "`claude` is not on PATH" in capsys.readouterr().out
+
+
+def test_install_no_scan_flag(dirs, monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr("builtins.input", lambda _: pytest.fail("must not ask"))
+    assert cli.main(["install", "--no-scan", "--settings", str(tmp_path / "settings.json")]) == 0
+    assert "Looking for your past sessions" not in capsys.readouterr().out
