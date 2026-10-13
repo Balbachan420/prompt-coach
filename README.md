@@ -42,17 +42,20 @@ same idea to a human's own sessions.
 
 ## Install: Claude Code plugin (recommended)
 
-Run this inside Claude Code:
-
-```
-/plugin install prompt-coach --marketplace Balbachan420/prompt-coach
-```
-
-On older Claude Code versions, use two steps:
+Inside a Claude Code chat, run these two commands one after the other:
 
 ```
 /plugin marketplace add Balbachan420/prompt-coach
 /plugin install prompt-coach@prompt-coach
+```
+
+The second command opens the plugin's card. Choose **Install**, for yourself (user
+scope).
+
+Or, in a terminal, run one command, which installs right away:
+
+```bash
+claude plugin install prompt-coach --marketplace Balbachan420/prompt-coach
 ```
 
 The plugin brings its own hooks, so `settings.json` is not edited, and updates arrive
