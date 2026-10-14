@@ -1,6 +1,37 @@
 # Roadmap
 
-## Next: judge the prompt itself in real time, before any correction
+## Next: an on-demand prompt reviewer (agent inside the plugin)
+
+**Status:** to be worked out, not started. Recorded 2026-10-14.
+
+### Why
+
+The plugin stays as it is: hooks are the only way to watch prompts and deliver a
+lesson without the user doing anything, and they also work in Codex. A Claude Code
+subagent cannot replace them, since it runs only when called and never sees the
+user's prompts. But an agent fits as an addition: a command the user calls
+deliberately before a big task.
+
+### Shape
+
+- A command such as `/prompt-coach:review <draft prompt>`, backed by an agent
+  shipped in the plugin (`agents/`).
+- It reads the current session and the user's profile from the scan (top
+  correction types with real examples from `lessons.jsonl`) and answers: what is
+  missing (goal, context, earlier decision, format), plus a rewritten prompt.
+- This is the manual version of the real-time judge below. It needs no ceiling
+  measurement: the user calls it when in doubt, so false alarms do not annoy.
+
+### Open questions
+
+- Command plus a plugin agent, or a skill only? Which needs less setup and works
+  without the plugin (terminal install)?
+- How much of the session to read, and how to point the agent at it.
+- Codex equivalent (no plugin agents there): a terminal command
+  `python3 -m coach review`?
+- How to measure usefulness: does a reviewed prompt lead to fewer corrections?
+
+## Then: judge the prompt itself in real time, before any correction
 
 **Status:** research, not started. Recorded 2026-10-13.
 
